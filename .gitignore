@@ -1,2 +1,7 @@
 Data/
+
 *.Rmd
+!example.Rmd
+
+.Rproj.user
+.Rhistory
