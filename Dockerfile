@@ -12,6 +12,7 @@ RUN install2.r --error --skipinstalled \
     ggplot2 \
     dplyr \
     tidyr \
+    lubridate \
     readxl
 
 COPY app.R /srv/shiny-server/

@@ -63,6 +63,7 @@ server <- function(input, output, session) {
         blank_wells=well %in% blank_wells,
         normalize_over=normalize_over
     )
+    df
   })
     
   output$plot <- renderPlot({
