@@ -1,5 +1,6 @@
 Data/
 
+*.swp
 *.log
 *.Rmd
 !example.Rmd

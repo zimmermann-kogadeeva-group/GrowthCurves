@@ -10,6 +10,7 @@ RUN apt update && apt upgrade -y
 RUN install2.r --error --skipinstalled \
     shiny \
     ggplot2 \
+    ggh4x \
     dplyr \
     tidyr \
     lubridate \

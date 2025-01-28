@@ -1,21 +1,21 @@
 library(magrittr)
 
-convert_to_num_mins <- function(vec) {
+convert_to_num_mins <- function(vec, digits=-1) {
     if (is.character(vec)) {
         new_vec <- vec %>% lubridate::hms() %>% as.numeric() / 60
     } else { 
         new_vec <- difftime(vec, vec[1], units="mins") %>% as.numeric()
     }
-    return(new_vec)
+    return(round(new_vec, digits))
 }
 
-read_data <- function(path, sheet, skip=25, n_max=97, ...) {
+read_data <- function(path, sheet, skip=25, n_max=97, time_digits=-1, ...) {
     dots <- dplyr::enquos(...)
 
     # read the data, convert time column to time elapsed since beginning of 
     # taking OD measurements. Also pivot to long format.
     readxl::read_excel(path, skip = skip, n_max = n_max, sheet = sheet) %>%
-    dplyr::mutate(time_elapsed_min=convert_to_num_mins(Time))  %>%
+    dplyr::mutate(time_elapsed_min=convert_to_num_mins(Time, time_digits))  %>%
     # 2 is to remove temp col (with diff names)
     dplyr::select(-c("Time", 2)) %>%  
     tidyr::pivot_longer(
@@ -43,7 +43,8 @@ read_od_data <- function(
     path, 
     sheet, 
     blank_wells=NULL,
-    normalize_over=NULL, 
+    normalize_over="time_elapsed_min", 
+    time_digits=-1,
     ...
 ) {
     # Check where the actual table is based on the location of Time column name
@@ -70,6 +71,7 @@ read_od_data <- function(
         sheet = .x, 
         skip=skip,
         n_max=n_max,
+        time_digits=time_digits,
         plate=.y,
         !!!dots
     )) %>%
@@ -77,7 +79,6 @@ read_od_data <- function(
     dplyr::mutate(plate=as.factor(plate))
 
     # Normalize based on user specified columns
-    normalize_over <- c("time_elapsed_min", normalize_over)
     blank_wells <- dplyr::enquo(blank_wells)
 
     if (!rlang::quo_is_null(blank_wells)) {
