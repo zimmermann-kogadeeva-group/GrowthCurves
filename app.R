@@ -75,17 +75,25 @@ server <- function(input, output, session) {
   })
 
   get_sheets <- eventReactive(input$open_given_sheets, {
+    # Check the input has been given
     req(input$sheet_names)
     req(input$file1)
 
     blank_wells <- input$blank_wells
     normalize_over <- input$normalize_over
+
+    # Read in the OD data
     df <- read_od_data(
         input$file1$datapath, 
         sheet=input$sheet_names, 
         blank_wells=well %in% blank_wells,
         normalize_over=normalize_over
     )
+
+    # Add metadata for additional files, if any
+    for (f in input$file_metadata$datapath) {
+        df <- dplyr::left_join(df, readxl::read_excel(f))
+    }
     df
   })
     
@@ -93,32 +101,32 @@ server <- function(input, output, session) {
     df <- get_sheets()
 
     if (input$lines) {
-      g <- df %>%
-      ggplot(aes(x=time_elapsed_min, y=norm_OD, color=plate)) + 
-        geom_point(size=0.5) +
-        geom_line(aes(color=plate))
+        g <- df %>%
+        ggplot(aes(x=time_elapsed_min, y=norm_OD, color=plate)) + 
+            geom_point(size=0.5) +
+            geom_line(aes(color=plate))
     } else {
-      df_means <- df %>%
-      dplyr::group_by(time_elapsed_min, well) %>% 
-      dplyr::summarize(mean_norm_OD = mean(norm_OD), sd_norm_OD = sd(norm_OD)) %>%
-      dplyr::ungroup() %>%
-      dplyr::mutate(lb=mean_norm_OD - sd_norm_OD, ub=mean_norm_OD + sd_norm_OD) %>%
-      dplyr::full_join(df, by=c("time_elapsed_min", "well"))
+        df_means <- df %>%
+        dplyr::group_by(time_elapsed_min, well) %>% 
+        dplyr::summarize(mean_norm_OD = mean(norm_OD), sd_norm_OD = sd(norm_OD)) %>%
+        dplyr::ungroup() %>%
+        dplyr::mutate(lb=mean_norm_OD - sd_norm_OD, ub=mean_norm_OD + sd_norm_OD) %>%
+        dplyr::full_join(df, by=c("time_elapsed_min", "well"))
 
-      g <- df_means %>%
-      ggplot(aes(x=time_elapsed_min)) + 
-        geom_ribbon(aes(ymin=lb, ymax=ub), fill="grey", alpha=0.7) + 
-        geom_line(aes(y=mean_norm_OD))
+        g <- df_means %>%
+        ggplot(aes(x=time_elapsed_min)) + 
+            geom_ribbon(aes(ymin=lb, ymax=ub), fill="grey", alpha=0.7) + 
+            geom_line(aes(y=mean_norm_OD))
 
     }
 
     g + 
-      ggh4x::facet_grid2(
-        row ~ col, 
-        scales=ifelse(input$shared_axes, "fixed", "free"), 
-        independent=ifelse(input$shared_axes, "none", "y")
-      ) + 
-      theme_bw()
+        ggh4x::facet_grid2(
+            row ~ col, 
+            scales=ifelse(input$shared_axes, "fixed", "free"), 
+            independent=ifelse(input$shared_axes, "none", "y")
+        ) + 
+        theme_bw()
   })
 
 }

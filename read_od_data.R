@@ -15,7 +15,8 @@ read_data <- function(path, sheet, skip=25, n_max=97, time_digits=-1, ...) {
     # read the data, convert time column to time elapsed since beginning of 
     # taking OD measurements. Also pivot to long format.
     readxl::read_excel(path, skip = skip, n_max = n_max, sheet = sheet) %>%
-    dplyr::mutate(time_elapsed_min=convert_to_num_mins(Time, time_digits))  %>%
+    tidyr::drop_na() %>%
+    dplyr::mutate(time_elapsed_min=convert_to_num_mins(Time, time_digits)) %>%
     # 2 is to remove temp col (with diff names)
     dplyr::select(-c("Time", 2)) %>%  
     tidyr::pivot_longer(
