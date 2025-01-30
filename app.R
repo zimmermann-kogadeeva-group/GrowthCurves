@@ -81,7 +81,7 @@ ui <- page_sidebar(
 
 # Define server logic required to draw a histogram ----
 server <- function(input, output, session) {
-    v <- reactiveValues(df=NULL)
+    v <- reactiveValues(df_full=NULL, df_subset=NULL)
 
     sheet_choice <- observeEvent(input$file1, {
 
@@ -101,7 +101,7 @@ server <- function(input, output, session) {
         )
     })
 
-    get_sheets <- observeEvent(input$open_given_sheets, {
+    observeEvent(input$open_given_sheets, {
         # Check the input has been given
         req(input$sheet_names)
         req(input$file1)
@@ -110,14 +110,15 @@ server <- function(input, output, session) {
         normalize_over <- input$normalize_over
 
         # Read in the OD data
-        v$df <- read_od_data(
+        v$df_full <- read_od_data(
             input$file1$datapath, 
             sheet=input$sheet_names, 
             blank_wells=well %in% blank_wells,
             normalize_over=normalize_over
         )
+        v$df_subset <- v$df_full
 
-        vars <- v$df %>% 
+        vars <- v$df_full %>% 
             dplyr::select(-c("time_elapsed_min", "OD", "norm_OD", "mean_OD_blank")) %>% 
             colnames()
 
@@ -130,27 +131,14 @@ server <- function(input, output, session) {
         )
     })
 
-    metadata_col_choices <- observeEvent(input$file_metadata, {
-        if(is.null(v$df)) return()
-
-        df <- v$df
+    observeEvent(input$file_metadata, {
+        if(is.null(v$df_full)) return()
+        df <- v$df_full
 
         req(input$file_metadata)
+        v$df_full <- add_metadata(df, input$file_metadata$datapath)
 
-        inFile <- input$file_metadata$datapath
-
-        # Read in the sheet names
-        metadata_sheets <- readxl::excel_sheets(inFile)
-
-        # Add metadata for additional files, if any
-        for (sheet in metadata_sheets) {
-            df <- dplyr::left_join(df, readxl::read_excel(inFile, sheet=sheet))
-        }
-       
-        # Update reactive value
-        v$df <- df
-
-        vars <- df %>% 
+        vars <- v$df_full %>% 
             dplyr::select(-c("time_elapsed_min", "OD", "norm_OD", "mean_OD_blank")) %>% 
             colnames()
 
@@ -164,10 +152,10 @@ server <- function(input, output, session) {
 
     })
 
-    filter_val <- observeEvent(input$filter_col, {
+    observeEvent(input$filter_col, {
         # update choices for filter value
-        if(is.null(v$df)) return()
-        df <- v$df
+        if(is.null(v$df_full)) return()
+        df <- v$df_full
 
         vars <- df %>% dplyr::pull(input$filter_col) %>% unique()
 
@@ -180,21 +168,28 @@ server <- function(input, output, session) {
         )
     })
 
-    output$plot <- renderPlot({
-        if(is.null(v$df)) return()
+    observeEvent(input$filter_val, {
+        if(is.null(v$df_full)) return()
+       
+        df <- v$df_full
 
-        df <- v$df
         filter_col <- input$filter_col
         filter_val <- input$filter_val
         
         # Make sure that filtering can be done and does not produce an empty
         # table
-        if (!(is.null(filter_col) || filter_col == "") 
-            && !(is.null(filter_val) || filter_val == "")) { 
+        if (!(is.null(filter_col) || filter_col == "") && 
+            !(is.null(filter_val) || filter_val == "")) { 
             df_subset <- df[df[filter_col] == filter_val, ]
             if (nrow(df_subset) > 0)
-                df <- df_subset
+                v$df_subset <- df_subset
         }
+    })
+
+    output$plot <- renderPlot({
+        if(is.null(v$df_subset)) return()
+
+        df <- v$df_subset
 
         # Whether to plot replicates separetly or not
         if (input$lines) {
@@ -203,18 +198,11 @@ server <- function(input, output, session) {
                 geom_point(size=0.5) +
                 geom_line(aes(color=plate))
         } else {
-            df_means <- df %>%
-            dplyr::group_by(time_elapsed_min, well) %>% 
-            dplyr::summarize(mean_norm_OD = mean(norm_OD), sd_norm_OD = sd(norm_OD)) %>%
-            dplyr::ungroup() %>%
-            dplyr::mutate(lb=mean_norm_OD - sd_norm_OD, ub=mean_norm_OD + sd_norm_OD) %>%
-            dplyr::full_join(df, by=c("time_elapsed_min", "well"))
-
-            g <- df_means %>%
+            g <- df %>% 
+            add_mean_and_sd() %>%
             ggplot(aes(x=time_elapsed_min)) + 
                 geom_ribbon(aes(ymin=lb, ymax=ub), fill="grey", alpha=0.7) + 
                 geom_line(aes(y=mean_norm_OD))
-
         }
 
         g + 

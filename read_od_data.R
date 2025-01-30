@@ -76,7 +76,7 @@ read_od_data <- function(
         plate=.y,
         !!!dots
     )) %>%
-    dplyr::bind_rows() %>%
+    dplyr::bind_rows() %>% 
     dplyr::mutate(plate=as.factor(plate))
 
     # Normalize based on user specified columns
@@ -95,3 +95,34 @@ read_od_data <- function(
     return(data)
 }
 
+conv_to_factors <- function(data, ...) {
+    col_names <- rlang::ensyms(...)
+    for (name in col_names) {
+        col_vals <- data %>% dplyr::pull(!!name) %>% unique() %>% sort()
+        data <- data %>% dplyr::mutate(across(all_of(name), as.factor))
+    }
+    data
+}
+
+add_metadata <- function(data, metadata_path, sheets=NULL) {
+    if (is.null(sheets))
+        sheets <- readxl::excel_sheets(metadata_path)
+
+    data <- data %>% dplyr::mutate(plate=as.numeric(plate), col=as.numeric(col))
+    
+    for (sheet in sheets)
+        data <- dplyr::left_join(data, readxl::read_excel(metadata_path, sheet))
+
+    data <- data %>% conv_to_factors(plate, col)
+
+    return(data)
+}
+
+add_mean_and_sd <- function(data, mean_over=c("time_elapsed_min", "well")) {
+    data %>%
+    dplyr::group_by(across(all_of(mean_over))) %>% 
+    dplyr::summarize(mean_norm_OD = mean(norm_OD), sd_norm_OD = sd(norm_OD)) %>%
+    dplyr::ungroup() %>%
+    dplyr::mutate(lb=mean_norm_OD - sd_norm_OD, ub=mean_norm_OD + sd_norm_OD) %>%
+    dplyr::full_join(data, by=mean_over)
+}
