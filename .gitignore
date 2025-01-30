@@ -1,4 +1,8 @@
-Data/
+Data/*
+!Data/example1_metadata.xlsx
+!Data/example1.xlsx
+!Data/example2_metadata.xlsx
+!Data/example2.xlsx
 
 *.swp
 *.log
