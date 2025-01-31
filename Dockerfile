@@ -13,6 +13,7 @@ RUN install2.r --error --skipinstalled \
     ggh4x \
     dplyr \
     tidyr \
+    readr \
     lubridate \
     readxl
 
