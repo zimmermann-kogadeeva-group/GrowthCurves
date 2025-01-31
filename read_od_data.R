@@ -9,12 +9,70 @@ convert_to_num_mins <- function(vec, digits=-1) {
     return(round(new_vec, digits))
 }
 
-read_data <- function(path, sheet, skip=25, n_max=97, time_digits=-1, ...) {
+
+get_idxs_from_txt <- function(path) {
+    enc <- readr::guess_encoding(path)[[1, 1]]
+    f <- readr::read_lines(path, locale = readr::locale(encoding=enc))
+    
+    # Time is present in metadata and in table
+    # so we skip all Time entries corresponding to metadata
+    start_idxs <- which(grepl("Time", f))[c(F, T)]
+    end_idxs <- which(grepl("Results", f))
+
+    list(start=start_idxs, end=end_idxs)
+}
+
+read_od_txt <- function(path, sheets=NULL) {
+    enc <- readr::guess_encoding(path)[[1, 1]]
+    f <- readr::read_lines(path, locale = readr::locale(encoding=enc))
+    
+    idxs <- get_idxs_from_txt(path)
+
+    if (is.null(sheets)) {
+        sheets <- seq(1, length(idxs$start))
+    }
+    sheets <- as.numeric(sheets)
+
+    purrr::map(
+        sheets,
+        ~readr::read_tsv(
+            path, 
+            skip=idxs$start[.x]-1, 
+            n_max=idxs$end[.x]-idxs$start[.x]-2, 
+            locale=readr::locale(encoding=enc),
+            show_col_types=FALSE
+        )
+    )
+}
+
+read_od_xlsx <- function(path, sheets=NULL) {
+    if (is.null(sheets)) {
+        sheets <- readxl::excel_sheets(path)
+    }
+    df <- readxl::read_excel(path, sheets[1])
+    
+    time_idxs <- which(df[, 1] == "Time")
+    alt_time_idxs <- which(df[, 2] == "Time")
+    if (length(time_idxs) == 2) {
+        skip <- as.integer(time_idxs[2])
+    } else if (length(alt_time_idxs) > 0) {
+        skip <- as.integer(alt_time_idxs[1])
+    } else {
+        stop("Could not find 'Time' column in the table")
+    }
+    n_max <- which(df[,1] == "Results") - skip - 2
+
+    # names(sheets) <- sheets
+    
+    imap(sheets, ~readxl::read_excel(path, .x, skip=skip, n_max=n_max))
+}
+
+process_data <- function(data, time_digits=-1, ...) {
     dots <- dplyr::enquos(...)
 
     # read the data, convert time column to time elapsed since beginning of 
     # taking OD measurements. Also pivot to long format.
-    readxl::read_excel(path, skip = skip, n_max = n_max, sheet = sheet) %>%
+    data %>%
     tidyr::drop_na() %>%
     dplyr::mutate(time_elapsed_min=convert_to_num_mins(Time, time_digits)) %>%
     # 2 is to remove temp col (with diff names)
@@ -42,36 +100,28 @@ read_data <- function(path, sheet, skip=25, n_max=97, time_digits=-1, ...) {
 
 read_od_data <- function(
     path, 
-    sheet, 
+    sheets=NULL,
     blank_wells=NULL,
     normalize_over="time_elapsed_min", 
     time_digits=-1,
     ...
 ) {
-    # Check where the actual table is based on the location of Time column name
-    # Note that Time is also in the metadata at the top of the spreadsheet
-    df <- readxl::read_excel(path, sheet[1])
-    time_idxs <- which(df[, 1] == "Time")
-    alt_time_idxs <- which(df[, 2] == "Time")
-    if (length(time_idxs) == 2) {
-        skip <- as.integer(time_idxs[2])
-    } else if (length(alt_time_idxs) > 0) {
-        skip <- as.integer(alt_time_idxs[1])
-    } else {
-        stop("Could not find 'Time' column in the table")
-    }
-    n_max <- which(df[,1] == "Results") - skip - 2
-
     # Make sure that ellipsis is converted properly
     dots <- dplyr::enquos(...)
+    
+    file_ext <- tools::file_ext(path) 
+    if (file_ext == "txt") {
+        list_sheets <- read_od_txt(path, sheets)
+    } else if (file_ext == "xlsx") {
+        list_sheets <- read_od_xlsx(path, sheets)
+    } else {
+        stop(paste("Unknown format:", file_ext))
+    }
 
     # Loop over all the specified sheets
-    data <- sheet %>%
-    purrr::imap(~read_data(
-        path = path, 
-        sheet = .x, 
-        skip=skip,
-        n_max=n_max,
+    data <- list_sheets %>%
+    purrr::imap(~process_data(
+        .x,
         time_digits=time_digits,
         plate=.y,
         !!!dots

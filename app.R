@@ -20,7 +20,7 @@ ui <- page_sidebar(
         wellPanel(
             h4("Data"),
                 
-            fileInput("file1", "Choose a File:", multiple=F, accept=c(".xlsx")), 
+            fileInput("file1", "Choose a File:", multiple=F, accept=c(".xlsx", ".txt")), 
 
             selectizeInput(
                 "sheet_names", "Sheets from excel table:", choices=NULL, multiple=TRUE
@@ -84,12 +84,19 @@ server <- function(input, output, session) {
     v <- reactiveValues(df_full=NULL, df_subset=NULL)
 
     sheet_choice <- observeEvent(input$file1, {
-
         req(input$file1)
         inFile <- input$file1
 
         # Read in the sheet names
-        vars <- readxl::excel_sheets(inFile$datapath)
+        file_ext <- tools::file_ext(inFile$datapath)
+        if (file_ext == "xlsx") {
+            vars <- readxl::excel_sheets(inFile$datapath)
+        } else if (file_ext == "txt") {
+            idxs <- get_idxs_from_txt(inFile$datapath)$start
+            vars <- seq(1, length(idxs))
+        } else {
+            stop(paste("Unknown format:", file_ext))
+        }
 
         # Update select input immediately after clicking on the action button. 
         updateSelectizeInput(
@@ -112,7 +119,7 @@ server <- function(input, output, session) {
         # Read in the OD data
         v$df_full <- read_od_data(
             input$file1$datapath, 
-            sheet=input$sheet_names, 
+            sheets=input$sheet_names, 
             blank_wells=well %in% blank_wells,
             normalize_over=normalize_over
         )

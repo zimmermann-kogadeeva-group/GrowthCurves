@@ -15,7 +15,6 @@ source(here("read_od_data.R"))
 ```{r}
 df_comm21 <- read_od_data(
     here("Data/example1.xlsx"), 
-    sheet=c("Sheet1", "Sheet2", "Sheet3"), 
     blank_wells=well %in% c("F11", "G11", "H11", paste0(LETTERS[1:8], 12))
 )
 
@@ -55,13 +54,13 @@ Read in P. vulgatus data and B. Uniformis data:
 ```{r}
 df_pvul2 <- read_od_data(
   here("Data/example2.xlsx"),
-  sheet=c("Plate 9 - Sheet1", "Plate 7 - Sheet1", "Plate 5 - Sheet1"), 
+  sheets=c("Plate 9 - Sheet1", "Plate 7 - Sheet1", "Plate 5 - Sheet1"), 
   blank_wells=well %in% c("C10", "D10")
 ) 
 
 df_buni2 <- read_od_data(
   here("Data/example2.xlsx"), 
-  sheet=c("Plate 8 - Sheet1", "Plate 6 - Sheet1", "Plate 4 - Sheet1"),
+  sheets=c("Plate 8 - Sheet1", "Plate 6 - Sheet1", "Plate 4 - Sheet1"),
   blank_wells=well %in% c("C10", "D10"),
 )
 ```
