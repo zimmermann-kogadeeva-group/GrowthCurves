@@ -14,6 +14,7 @@ RUN install2.r --error --skipinstalled \
     dplyr \
     tidyr \
     readr \
+    purrr \
     lubridate \
     readxl
 

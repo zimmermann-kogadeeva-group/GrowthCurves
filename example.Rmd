@@ -14,23 +14,23 @@ source(here("read_od_data.R"))
 
 ```{r}
 df_comm21 <- read_od_data(
-    here("Data/example1.xlsx"), 
-    blank_wells=well %in% c("F11", "G11", "H11", paste0(LETTERS[1:8], 12))
+  here("Data/example1.xlsx"),
+  blank_wells = well %in% c("F11", "G11", "H11", paste0(LETTERS[1:8], 12))
 )
 
 # Adding metadata
-df_comm21 <- df_comm21 %>% 
-add_metadata(here("Data/example1_metadata.xlsx"))
+df_comm21 <- df_comm21 %>%
+  add_metadata(here("Data/example1_metadata.xlsx"))
 ```
 
 We can plot all of the wells:
 
 ```{r}
 df_comm21 %>%
-ggplot(aes(x=time_elapsed_min, y = norm_OD, color = plate)) + 
+  ggplot(aes(x = time_elapsed_min, y = norm_OD, color = plate)) +
   geom_point(size = 0.5) +
-  facet_grid(row ~ col) + 
-  geom_line(aes(color = plate)) + 
+  facet_grid(row ~ col) +
+  geom_line(aes(color = plate)) +
   theme_bw()
 ```
 
@@ -38,12 +38,12 @@ We can also plot specific wells based on metadata. Below, we plot wells
 containing monocultures:
 
 ```{r}
-df_comm21 %>% 
-filter(type=="Monocultures") %>%
-ggplot(aes(x=time_elapsed_min, y = norm_OD, color = plate)) + 
+df_comm21 %>%
+  filter(type == "Monocultures") %>%
+  ggplot(aes(x = time_elapsed_min, y = norm_OD, color = plate)) +
   geom_point(size = 0.5) +
-  facet_grid(row ~ col) + 
-  geom_line(aes(color = plate)) + 
+  facet_grid(row ~ col) +
+  geom_line(aes(color = plate)) +
   theme_bw()
 ```
 
@@ -54,14 +54,14 @@ Read in P. vulgatus data and B. Uniformis data:
 ```{r}
 df_pvul2 <- read_od_data(
   here("Data/example2.xlsx"),
-  sheets=c("Plate 9 - Sheet1", "Plate 7 - Sheet1", "Plate 5 - Sheet1"), 
-  blank_wells=well %in% c("C10", "D10")
-) 
+  sheets = c("Plate 9 - Sheet1", "Plate 7 - Sheet1", "Plate 5 - Sheet1"),
+  blank_wells = well %in% c("C10", "D10")
+)
 
 df_buni2 <- read_od_data(
-  here("Data/example2.xlsx"), 
-  sheets=c("Plate 8 - Sheet1", "Plate 6 - Sheet1", "Plate 4 - Sheet1"),
-  blank_wells=well %in% c("C10", "D10"),
+  here("Data/example2.xlsx"),
+  sheets = c("Plate 8 - Sheet1", "Plate 6 - Sheet1", "Plate 4 - Sheet1"),
+  blank_wells = well %in% c("C10", "D10"),
 )
 ```
 
@@ -69,10 +69,10 @@ Then we can plot P. vulgatus:
 
 ```{r}
 df_pvul2 %>%
-ggplot(aes(x=time_elapsed_min, y = norm_OD, color = plate)) + 
+  ggplot(aes(x = time_elapsed_min, y = norm_OD, color = plate)) +
   geom_point(size = 0.5) +
-  facet_grid(row ~ col, scales="free") + 
-  geom_line(aes(color = plate)) + 
+  facet_grid(row ~ col, scales = "free") +
+  geom_line(aes(color = plate)) +
   theme_bw()
 ```
 
@@ -80,10 +80,10 @@ and B. uniformis:
 
 ```{r}
 df_buni2 %>%
-ggplot(aes(x=time_elapsed_min, y = norm_OD, color = plate)) + 
+  ggplot(aes(x = time_elapsed_min, y = norm_OD, color = plate)) +
   geom_point(size = 0.5) +
-  facet_grid(row ~ col, scales="free") + 
-  geom_line(aes(color = plate)) + 
+  facet_grid(row ~ col, scales = "free") +
+  geom_line(aes(color = plate)) +
   theme_bw()
 ```
 # Example 3
@@ -93,25 +93,25 @@ We load in another dataset:
 ```{r}
 df_b12 <- read_od_data(
   here("Data/example2.xlsx"),
-  sheet=c("Plate 3 - Sheet1", "Plate 2 - Sheet1"),
-  blank_wells=col == 12,
+  sheet = c("Plate 3 - Sheet1", "Plate 2 - Sheet1"),
+  blank_wells = col == 12,
   normalize_over = c("time_elapsed_min", "row", "plate")
-) %>% 
-add_metadata(here("Data/example2_metadata.xlsx"))
+) %>%
+  add_metadata(here("Data/example2_metadata.xlsx"))
 ```
 
 We can plot it according to the medatdata:
 
 ```{r}
-df_b12 %>% 
+df_b12 %>%
   filter(species == "Bunif") %>%
-  mutate(brep=as.factor(brep)) %>%
-  ggplot(aes(x=time_elapsed_min, y = norm_OD, color = brep)) + 
-    geom_point(size = 0.5) +
-    facet_grid(tech ~ conc) + 
-    geom_line(aes(color = brep)) + 
-    theme_bw() + 
-    scale_y_log10()
+  mutate(brep = as.factor(brep)) %>%
+  ggplot(aes(x = time_elapsed_min, y = norm_OD, color = brep)) +
+  geom_point(size = 0.5) +
+  facet_grid(tech ~ conc) +
+  geom_line(aes(color = brep)) +
+  theme_bw() +
+  scale_y_log10()
 ```
 
 
