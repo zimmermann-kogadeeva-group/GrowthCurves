@@ -12,7 +12,7 @@ convert_to_num_mins <- function(vec, digits = -1) {
 }
 
 
-get_idxs_from_txt <- function(path) {
+get_metadata_txt <- function(path) {
   enc <- readr::guess_encoding(path)[[1, 1]]
   f <- readr::read_lines(path, locale = readr::locale(encoding = enc))
 
@@ -20,17 +20,22 @@ get_idxs_from_txt <- function(path) {
   # so we skip all Time entries corresponding to metadata
   start_idxs <- which(grepl("Time", f))[c(FALSE, TRUE)]
   end_idxs <- which(grepl("Results", f))
+  test_line <- f[start_idxs[1] + 1]
+  decimal_mark <- ifelse(stringr::str_detect(test_line, ","), ",", ".")
 
-  list(start = start_idxs, end = end_idxs)
+  list(
+    start = start_idxs,
+    end = end_idxs,
+    decimal_mark = decimal_mark,
+    encoding = enc
+  )
 }
 
 read_od_txt <- function(path, sheets = NULL) {
-  enc <- readr::guess_encoding(path)[[1, 1]]
-
-  idxs <- get_idxs_from_txt(path)
+  meta <- get_metadata_txt(path)
 
   if (is.null(sheets)) {
-    sheets <- seq(1, length(idxs$start))
+    sheets <- seq(1, length(meta$start))
   }
   sheets <- as.numeric(sheets)
 
@@ -38,9 +43,12 @@ read_od_txt <- function(path, sheets = NULL) {
     sheets,
     ~ readr::read_tsv(
       path,
-      skip = idxs$start[.x] - 1,
-      n_max = idxs$end[.x] - idxs$start[.x] - 2,
-      locale = readr::locale(encoding = enc),
+      skip = meta$start[.x] - 1,
+      n_max = meta$end[.x] - meta$start[.x] - 2,
+      locale = readr::locale(
+        encoding = meta$encoding,
+        decimal_mark = meta$decimal_mark
+      ),
       show_col_types = FALSE
     )
   )
@@ -65,7 +73,10 @@ read_od_xlsx <- function(path, sheets = NULL) {
 
   # names(sheets) <- sheets
 
-  purrr::imap(sheets, ~ readxl::read_excel(path, .x, skip = skip, n_max = n_max))
+  purrr::imap(
+    sheets,
+    ~ readxl::read_excel(path, .x, skip = skip, n_max = n_max)
+  )
 }
 
 process_data <- function(data, time_digits = -1, ...) {

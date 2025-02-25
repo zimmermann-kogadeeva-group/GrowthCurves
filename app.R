@@ -21,13 +21,13 @@ ui <- page_sidebar(
       h4("Data"),
       fileInput(
         "file1",
-        "Choose a File:",
+        "Choose a file:",
         multiple = FALSE,
         accept = c(".xlsx", ".txt")
       ),
       selectizeInput(
         "sheet_names",
-        "Sheets from excel table:",
+        "Choose sheets:",
         choices = NULL,
         multiple = TRUE
       ),
@@ -92,8 +92,8 @@ server <- function(input, output, session) {
     if (file_ext == "xlsx") {
       vars <- readxl::excel_sheets(in_file$datapath)
     } else if (file_ext == "txt") {
-      idxs <- get_idxs_from_txt(in_file$datapath)$start
-      vars <- seq(1, length(idxs))
+      start <- get_metadata_txt(in_file$datapath)$start
+      vars <- seq(1, length(start))
     } else {
       stop(paste("Unknown format:", file_ext))
     }
@@ -102,9 +102,9 @@ server <- function(input, output, session) {
     updateSelectizeInput(
       session,
       "sheet_names",
-      "Sheets from excel table",
+      "Choose sheets:",
       choices = vars,
-      server = T
+      server = TRUE
     )
   })
 
