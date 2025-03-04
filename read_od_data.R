@@ -34,6 +34,14 @@ get_metadata_txt <- function(path) {
 read_od_txt <- function(path, sheets = NULL) {
   meta <- get_metadata_txt(path)
 
+  if (any(is.na(meta$start_idxs))) {
+    stop("Could not find 'Time' column in the file")
+  }
+
+  if (is.na(meta$decimal_mark)) {
+    stop("Could not determine `decimal_mark` within the file")
+  }
+
   if (is.null(sheets)) {
     sheets <- seq(1, length(meta$start))
   }

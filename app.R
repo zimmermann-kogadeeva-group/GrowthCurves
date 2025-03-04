@@ -117,30 +117,44 @@ server <- function(input, output, session) {
     normalize_over <- input$normalize_over
 
     # Read in the OD data
-    v$df_full <- read_od_data(
-      input$file1$datapath,
-      sheets = input$sheet_names,
-      blank_wells = well %in% blank_wells,
-      normalize_over = normalize_over
+    tryCatch(
+      {
+        v$df_full <- read_od_data(
+          input$file1$datapath,
+          sheets = input$sheet_names,
+          blank_wells = well %in% blank_wells,
+          normalize_over = normalize_over
+        )
+        v$df_subset <- v$df_full
+      },
+      warning = function(w) {
+        showNotification("Warning", "", type = "warning")
+        return()
+      },
+      error = function(e) {
+        showNotification("Could not read the data", "", type = "error")
+        return()
+      }
     )
-    v$df_subset <- v$df_full
 
-    vars <- v$df_full %>%
-      dplyr::select(-c(
-        "time_elapsed_min",
-        "OD",
-        "norm_OD",
-        "mean_OD_blank"
-      )) %>%
-      colnames()
+    if (is.data.frame(v$df_full)) {
+      vars <- v$df_full %>%
+        dplyr::select(-c(
+          "time_elapsed_min",
+          "OD",
+          "norm_OD",
+          "mean_OD_blank"
+        )) %>%
+        colnames()
 
-    updateSelectizeInput(
-      session,
-      "filter_col",
-      "Column to filter by:",
-      choices = c("", vars),
-      selected = NULL
-    )
+      updateSelectizeInput(
+        session,
+        "filter_col",
+        "Column to filter by:",
+        choices = c("", vars),
+        selected = NULL
+      )
+    }
   })
 
   observeEvent(input$file_metadata, {
