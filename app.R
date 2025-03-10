@@ -128,10 +128,12 @@ server <- function(input, output, session) {
         v$df_subset <- v$df_full
       },
       warning = function(w) {
+        print(w)
         showNotification("Warning", "", type = "warning")
         return()
       },
       error = function(e) {
+        print(e)
         showNotification("Could not read the data", "", type = "error")
         return()
       }

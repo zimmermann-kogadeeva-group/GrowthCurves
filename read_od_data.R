@@ -111,7 +111,7 @@ read_od_xlsx <- function(path, sheets = NULL) {
     sheets,
     ~ {
       readxl::read_excel(path, .x, skip = skip, n_max = n_max) %>%
-        rename_with(~"Time", starts_with("Time"))
+        dplyr::rename_with(~"Time", starts_with("Time"))
     }
   )
 }
@@ -125,7 +125,7 @@ process_data <- function(data, time_digits = -1, ...) {
     tidyr::drop_na() %>%
     dplyr::mutate(time_elapsed_min = convert_to_num_mins(Time, time_digits)) %>%
     # 2 is to remove temp col (with diff names)
-    dplyr::select(c("time_elapsed_min", possible_wells)) %>%
+    dplyr::select(dplyr::all_of(c("time_elapsed_min", possible_wells))) %>%
     tidyr::pivot_longer(
       cols = -time_elapsed_min,
       names_to = "well",
@@ -184,7 +184,7 @@ read_od_data <- function(
   if (!rlang::quo_is_null(blank_wells)) {
     data <- data %>%
       dplyr::filter(!!blank_wells) %>% # select the blank wells
-      dplyr::group_by(across(all_of(normalize_over))) %>%
+      dplyr::group_by(dplyr::across(dplyr::all_of(normalize_over))) %>%
       dplyr::summarize(mean_OD_blank = mean(OD)) %>%
       dplyr::ungroup() %>%
       dplyr::full_join(data, by = normalize_over) %>%
@@ -201,7 +201,9 @@ conv_to_factors <- function(data, ...) {
       dplyr::pull(!!name) %>%
       unique() %>%
       sort()
-    data <- data %>% dplyr::mutate(across(all_of(name), as.factor))
+
+    data <- data %>%
+      dplyr::mutate(dplyr::across(dplyr::all_of(name), as.factor))
   }
   data
 }
