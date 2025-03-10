@@ -1,5 +1,11 @@
 library(magrittr)
 
+
+possible_wells <- expand.grid(col = LETTERS[1:8], row = seq(1, 12)) %>%
+  dplyr::mutate(well = paste0(col, row)) %>%
+  dplyr::pull(well)
+
+
 convert_to_num_mins <- function(vec, digits = -1) {
   if (is.character(vec)) {
     new_vec <- vec %>%
@@ -68,8 +74,16 @@ read_od_xlsx <- function(path, sheets = NULL) {
   }
   df <- readxl::read_excel(path, sheets[1])
 
-  time_idxs <- which(df[, 1] == "Time")
-  alt_time_idxs <- which(df[, 2] == "Time")
+  time_idxs <- df[, 1] %>%
+    dplyr::pull() %>%
+    stringr::str_detect("Time") %>%
+    which()
+
+  alt_time_idxs <- df[, 2] %>%
+    dplyr::pull() %>%
+    stringr::str_detect("Time") %>%
+    which()
+
   if (length(time_idxs) == 2) {
     skip <- as.integer(time_idxs[2])
   } else if (length(alt_time_idxs) > 0) {
@@ -77,13 +91,28 @@ read_od_xlsx <- function(path, sheets = NULL) {
   } else {
     stop("Could not find 'Time' column in the table")
   }
-  n_max <- which(df[, 1] == "Results") - skip - 2
+
+  n_max <- df[, 1] %>%
+    dplyr::pull() %>%
+    stringr::str_detect("Results") %>%
+    which() - skip - 2
+
+  # Either 'Results' or 'End Time' indicates end of data
+  if (length(n_max) == 0 || n_max < 1) {
+    n_max <- df[, 1] %>%
+      dplyr::pull() %>%
+      stringr::str_detect("End Time") %>%
+      which() - skip - 2
+  }
 
   # names(sheets) <- sheets
 
   purrr::imap(
     sheets,
-    ~ readxl::read_excel(path, .x, skip = skip, n_max = n_max)
+    ~ {
+      readxl::read_excel(path, .x, skip = skip, n_max = n_max) %>%
+        rename_with(~"Time", starts_with("Time"))
+    }
   )
 }
 
@@ -96,7 +125,7 @@ process_data <- function(data, time_digits = -1, ...) {
     tidyr::drop_na() %>%
     dplyr::mutate(time_elapsed_min = convert_to_num_mins(Time, time_digits)) %>%
     # 2 is to remove temp col (with diff names)
-    dplyr::select(-c("Time", 2)) %>%
+    dplyr::select(c("time_elapsed_min", possible_wells)) %>%
     tidyr::pivot_longer(
       cols = -time_elapsed_min,
       names_to = "well",
@@ -106,7 +135,7 @@ process_data <- function(data, time_digits = -1, ...) {
       cols = well,
       widths = c(row = 1, col = 2),
       too_few = "align_start",
-      cols_remove = F
+      cols_remove = FALSE
     ) %>%
     dplyr::mutate(
       col = factor(
