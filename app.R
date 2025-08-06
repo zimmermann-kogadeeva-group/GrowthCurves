@@ -22,7 +22,7 @@ ui <- page_sidebar(
       fileInput(
         "file1",
         "Choose a file:",
-        multiple = FALSE,
+        multiple = TRUE,
         accept = c(".xlsx", ".txt")
       ),
       selectizeInput(

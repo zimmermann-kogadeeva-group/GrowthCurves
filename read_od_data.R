@@ -72,7 +72,9 @@ read_od_xlsx <- function(path, sheets = NULL) {
   if (is.null(sheets)) {
     sheets <- readxl::excel_sheets(path)
   }
-  df <- readxl::read_excel(path, sheets[1])
+  suppressMessages(
+    df <- readxl::read_excel(path, sheets[1])
+  )
 
   time_idxs <- df[, 1] %>%
     dplyr::pull() %>%
@@ -216,9 +218,11 @@ add_metadata <- function(data, metadata_path, sheets = NULL) {
   data <- data %>%
     dplyr::mutate(plate = as.numeric(plate), col = as.numeric(col))
 
-  for (sheet in sheets) {
-    data <- dplyr::left_join(data, readxl::read_excel(metadata_path, sheet))
-  }
+  suppressMessages(
+    for (sheet in sheets) {
+      data <- dplyr::left_join(data, readxl::read_excel(metadata_path, sheet))
+    }
+  )
 
   data <- data %>% conv_to_factors(plate, col)
 
