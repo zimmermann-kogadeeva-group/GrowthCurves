@@ -11,7 +11,7 @@ tag = true
 push = false
 
 [bumpver.file_patterns]
-"README.md" = [
+"Makefile" = [
     "VERSION = {version}",
 ]
 "bumpver.toml" = [
