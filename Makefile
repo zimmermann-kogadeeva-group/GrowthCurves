@@ -1,6 +1,6 @@
 
 URL = docker://registry.git.embl.de/grp-zimmermann-kogadeeva/growthcurves
-VERSION = 0.0.1
+VERSION = 0.0.15
 
 all: growthcurves_${VERSION}.sif
 
