@@ -6,7 +6,7 @@ stages:
 build:
   stage: build
   image:
-    name: gcr.io/kaniko-project/executor:v1.23.2-debug
+    name: gcr.io/kaniko-project/executor:v1.24.0-debug
     entrypoint: [ "" ]
   script:
     - /kaniko/executor 
@@ -21,10 +21,10 @@ deploy:
   script:
     - apt update && apt install -y ssh
     - chmod 400 ${SSH_KEY}
-    - ssh -i ${SSH_KEY} -o StrictHostKeyChecking=no podman@zim-matlab01.embl.de "podman login -u ${CI_DEPLOY_USER} -p ${CI_DEPLOY_TOKEN} registry.git.embl.org"
-    - ssh -i ${SSH_KEY} -o StrictHostKeyChecking=no podman@zim-matlab01.embl.de "podman rm -f ${CI_PROJECT_NAME} || true"
-    - ssh -i ${SSH_KEY} -o StrictHostKeyChecking=no podman@zim-matlab01.embl.de "podman rmi \$(podman images -q ${CI_REGISTRY_IMAGE}) || true"
-    - ssh -i ${SSH_KEY} -o StrictHostKeyChecking=no podman@zim-matlab01.embl.de "podman run -d --name ${CI_PROJECT_NAME} --restart always -p 3838:3838 ${CI_REGISTRY_IMAGE}:${CI_COMMIT_TAG}"
+    - ssh -i ${SSH_KEY} -o StrictHostKeyChecking=no podman@zim-matlab01.embl.de "docker login -u ${CI_DEPLOY_USER} -p ${CI_DEPLOY_TOKEN} registry.git.embl.org"
+    - ssh -i ${SSH_KEY} -o StrictHostKeyChecking=no podman@zim-matlab01.embl.de "docker rm -f ${CI_PROJECT_NAME} || true"
+    - ssh -i ${SSH_KEY} -o StrictHostKeyChecking=no podman@zim-matlab01.embl.de "docker rmi \$(docker images -q ${CI_REGISTRY_IMAGE}) || true"
+    - ssh -i ${SSH_KEY} -o StrictHostKeyChecking=no podman@zim-matlab01.embl.de "docker run -d --name ${CI_PROJECT_NAME} --restart always -p 3838:3838 ${CI_REGISTRY_IMAGE}:${CI_COMMIT_TAG}"
   rules:
     - if: $CI_COMMIT_TAG
 
