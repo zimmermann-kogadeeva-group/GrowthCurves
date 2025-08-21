@@ -7,8 +7,11 @@ Data/*
 *.swp
 *.log
 *.Rmd
+*.qmd
 Scripts/
-!example.Rmd
+!example.qmd
 
 .Rproj.user
 .Rhistory
+
+notes.md

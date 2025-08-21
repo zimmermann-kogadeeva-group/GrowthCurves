@@ -1,13 +1,17 @@
 ---
 title: "example"
-output: html_document
-date: "2025-01-15"
+format: 
+   html:
+     code-fold: true
+     code-tools: true 
+     df-print: paged
 ---
 ```{r}
 library(tidyverse)
 library(here)
 
 source(here("read_od_data.R"))
+source(here("fitting.R"))
 ```
 
 # Example 1
@@ -29,8 +33,8 @@ We can plot all of the wells:
 df_comm21 %>%
   ggplot(aes(x = time_elapsed_min, y = norm_OD, color = plate)) +
   geom_point(size = 0.5) +
-  facet_grid(row ~ col) +
   geom_line(aes(color = plate)) +
+  facet_grid(row ~ col) +
   theme_bw()
 ```
 
