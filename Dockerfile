@@ -16,7 +16,8 @@ RUN install2.r --error --skipinstalled \
     readr \
     purrr \
     lubridate \
-    readxl
+    readxl \
+    plotly
 
 COPY app.R /srv/shiny-server/
 
