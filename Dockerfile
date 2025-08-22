@@ -19,9 +19,7 @@ RUN install2.r --error --skipinstalled \
     readxl \
     plotly
 
-COPY app.R /srv/shiny-server/
-
-COPY read_od_data.R /srv/shiny-server/
+COPY app.R fitting.R read_od_data.R /srv/shiny-server/
 
 USER shiny
 
