@@ -93,6 +93,7 @@ ui <- page_sidebar(
         uiOutput("further_fitting_opts"),
         actionButton("run_fit", "Fit to data"),
         actionButton("clear_fit", "Clear fitting"),
+        actionButton("show_fitting_info", "Show fitting info"),
       ),
       open = "Load data",
       multiple = FALSE,
@@ -222,7 +223,7 @@ fitting_params <- function(fitting_opt) {
           "carrying capacity",
           min = 0.0,
           max = 2.0,
-          value = c(0.8, 1.5),
+          value = c(0.5, 1.5),
           step = 0.01
         )
       )
@@ -230,8 +231,67 @@ fitting_params <- function(fitting_opt) {
   }
 }
 
+run_fit_exp <- function(data, exp_window_size) {
+  # Fitting stuff - here for the moment
+  spar <- 0.5
+
+  if (nrow(data %>% dplyr::filter(norm_OD < 0)) > 0) {
+    showNotification(
+      paste0(
+        "Some wells and replicates have negative values!\n",
+        "No fitting will be done in these cases."
+      )
+    )
+  }
+
+  fit_exp <- growthrates::all_easylinear(
+    norm_OD ~ time_elapsed_min | row + col + plate,
+    data = {
+      data %>%
+        dplyr::group_by(well, plate) %>%
+        dplyr::filter(!any(norm_OD < 0)) %>%
+        dplyr::ungroup()
+    },
+    h = exp_window_size,
+    spar = spar
+  )
+
+  df_pred <- fit_exp %>%
+    all_pred_linear(time_elapsed_min = "time", norm_OD = "y") %>%
+    dplyr::filter(norm_OD < max(data$norm_OD))
+
+  return(list(df_pred=df_pred, results=growthrates::results(fit_exp)))
+}
+
+run_fit_logistic <- function(data, y0_range, mumax_range, K_range) {
+  lower <- c(
+    y0 = y0_range[1],
+    mumax = mumax_range[1],
+    K = K_range[1]
+  )
+  upper <- c(
+    y0 = y0_range[2],
+    mumax = mumax_range[2],
+    K = K_range[2]
+  )
+  p <- 0.5 * (lower + upper)
+
+  fit_logit <- growthrates::all_growthmodels(
+    norm_OD ~ growthrates::grow_logistic(time_elapsed_min, parms) | row + col + plate,
+    data = data,
+    p = p,
+    lower = lower,
+    upper = upper,
+  )
+
+  df_pred <- fit_logit %>%
+    all_pred_nonlinear(time_elapsed_min = "time", norm_OD = "y")
+
+  return(list(df_pred=df_pred, results=growthrates::results(fit_logit)))
+}
+
 server <- function(input, output, session) {
-  v <- reactiveValues(df_full = NULL, df_subset = NULL, df_pred = NULL)
+  v <- reactiveValues(df_full = NULL, df_subset = NULL, df_pred = NULL, fit_results = NULL)
 
   observeEvent(input$file1, {
     req(input$file1)
@@ -310,7 +370,6 @@ server <- function(input, output, session) {
     }
   })
 
-
   observeEvent(input$clear_fit, {
     updateRadioButtons(session, "fitting_opt", selected = character(0))
     v$df_pred <- NULL
@@ -324,69 +383,38 @@ server <- function(input, output, session) {
     if (is.null(v$df_subset) || is.null(input$fitting_opt)) {
       return()
     }
-    df <- v$df_subset
 
-    if (input$fitting_opt == "exp" && !is.null(input$exp_window_size)) {
-      # Fitting stuff - here for the moment
-      spar <- 0.5
-
-      if (nrow(v$df_subset %>% dplyr::filter(norm_OD < 0)) > 0) {
-        showNotification(
-          paste0(
-            "Some wells and replicates have negative values!\n",
-            "No fitting will be done in these cases."
-          )
-        )
+    withProgress(message = "Fitting to data...", {
+      if (input$fitting_opt == "exp" && !is.null(input$exp_window_size)) {
+        fit_res <- run_fit_exp(v$df_subset, input$exp_window_size)
+        v$df_pred <- fit_res$df_pred
+        v$fit_results <- fit_res$results
+      } else if (
+        input$fitting_opt == "logistic" &&
+          !is.null(input$logit_y0) &&
+          !is.null(input$logit_mumax) &&
+          !is.null(input$logit_K)
+        ) {
+        fit_res <- run_fit_logistic(v$df_subset, input$logit_y0, input$logit_mumax, input$logit_K) 
+        v$df_pred <- fit_res$df_pred
+        v$fit_results <- fit_res$results
       }
+    })
 
-      fit_exp <- growthrates::all_easylinear(
-        norm_OD ~ time_elapsed_min | row + col + plate,
-        data = {
-          df %>%
-            dplyr::group_by(well, plate) %>%
-            dplyr::filter(!any(norm_OD < 0)) %>%
-            dplyr::ungroup()
-        },
-        h = input$exp_window_size,
-        spar = spar
-      )
+  })
 
-      v$df_pred <- fit_exp %>%
-        all_pred_linear(time_elapsed_min = "time", norm_OD = "y") %>%
-        dplyr::filter(norm_OD < max(df$norm_OD))
-    } else if (
-      input$fitting_opt == "logistic" &&
-        !is.null(input$logit_y0) &&
-        !is.null(input$logit_mumax) &&
-        !is.null(input$logit_K)
-    ) {
-      p <- c(
-        y0 = mean(input$logit_y0),
-        mumax = mean(input$logit_mumax),
-        K = mean(input$logit_K)
-      )
-      lower <- c(
-        y0 = input$logit_y0[1],
-        mumax = input$logit_mumax[1],
-        K = input$logit_K[1]
-      )
-      upper <- c(
-        y0 = input$logit_y0[2],
-        mumax = input$logit_mumax[2],
-        K = input$logit_K[2]
-      )
-
-      fit_logit <- growthrates::all_growthmodels(
-        norm_OD ~ growthrates::grow_logistic(time_elapsed_min, parms) | row + col + plate,
-        data = df,
-        p = p,
-        lower = lower,
-        upper = upper,
-      )
-
-      v$df_pred <- fit_logit %>%
-        all_pred_nonlinear(time_elapsed_min = "time", norm_OD = "y")
+  observeEvent(input$show_fitting_info, {
+    if (is.null(v$fit_results)) {
+      return()
     }
+
+    showModal(modalDialog(
+      title="Fitting info",
+      renderTable(v$fit_results, digits=5),
+      size="l",
+      easyClose=TRUE,
+      footer=modalButton("Close")
+    ))
   })
 
   output$plot <- renderPlotly({
@@ -424,13 +452,20 @@ server <- function(input, output, session) {
         theme_bw()
 
       if (!is.null(v$df_pred) && nrow(v$df_pred) > 0) {
+        fit_data <- v$df_pred %>% 
+          dplyr::left_join(
+            v$fit_results %>% 
+            dplyr::mutate(plate = as.character(plate), col = as.character(col))
+          ) %>%
+          dplyr::rename(tidyr::any_of(c(growth_rate="mumax")))
+
         g <- g + geom_line(
           aes(group = plate),
-          data = v$df_pred,
+          data = fit_data,
           color = "black",
           linewidth = 1.6
         ) +
-          geom_line(data = v$df_pred, linetype = "dashed", linewidth = 1.0)
+          geom_line(aes(growth_rate=growth_rate), data = fit_data, linetype = "dashed", linewidth = 1.0)
         # TODO: download button for df_pred
       }
 
