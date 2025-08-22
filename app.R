@@ -94,6 +94,7 @@ ui <- page_sidebar(
         actionButton("run_fit", "Fit to data"),
         actionButton("clear_fit", "Clear fitting"),
         actionButton("show_fitting_info", "Show fitting info"),
+        downloadButton("download_fitting_info", "Download fitting info"),
       ),
       open = "Load data",
       multiple = FALSE,
@@ -416,6 +417,13 @@ server <- function(input, output, session) {
       footer=modalButton("Close")
     ))
   })
+  
+  output$download_fitting_info <- downloadHandler(
+    filename = function(){ "fitting_info.csv" },
+    content = function(fname) {
+      write.csv(v$fit_results, fname)
+    }
+  )
 
   output$plot <- renderPlotly({
     if (is.null(v$df_subset)) {
