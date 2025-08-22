@@ -17,6 +17,7 @@ RUN install2.r --error --skipinstalled \
     purrr \
     lubridate \
     readxl \
+    growthrates \
     plotly
 
 COPY app.R fitting.R read_od_data.R /srv/shiny-server/
