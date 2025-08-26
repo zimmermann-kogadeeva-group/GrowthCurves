@@ -190,7 +190,8 @@ read_od_data <- function(
       dplyr::summarize(mean_OD_blank = mean(OD)) %>%
       dplyr::ungroup() %>%
       dplyr::full_join(data, by = normalize_over) %>%
-      dplyr::mutate(norm_OD = OD - mean_OD_blank)
+      dplyr::mutate(norm_OD = OD - mean_OD_blank) %>%
+      dplyr::select(-mean_OD_blank)
   }
 
   return(data)

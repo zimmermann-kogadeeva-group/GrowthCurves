@@ -127,12 +127,18 @@ update_sheets_info <- function(in_file, session) {
 
 read_data <- function(in_file, sheet_names, blank_wells, norm_over, session) {
   # Read in the OD data
+  blanks_expr <- if (!is.null(blank_wells)) {
+    rlang::expr(well %in% !!blank_wells) # use quosure injection (!!)
+  } else {
+    NULL
+  }
+
   tryCatch(
     {
       df_full <- read_od_data(
         in_file$datapath,
         sheets = sheet_names,
-        blank_wells = well %in% blank_wells,
+        blank_wells = !!blanks_expr,
         normalize_over = norm_over
       )
     },
@@ -151,12 +157,11 @@ read_data <- function(in_file, sheet_names, blank_wells, norm_over, session) {
   # Update possible selection in plotting options
   if (is.data.frame(df_full)) {
     vars <- df_full %>%
-      dplyr::select(-c(
+      dplyr::select(-tidyr::any_of(c(
         "time_elapsed_min",
         "OD",
-        "norm_OD",
-        "mean_OD_blank"
-      )) %>%
+        "norm_OD"
+      ))) %>%
       colnames()
 
     updateSelectizeInput(
@@ -168,7 +173,9 @@ read_data <- function(in_file, sheet_names, blank_wells, norm_over, session) {
     )
   }
 
-  return(df_full)
+  df_full %>%
+    dplyr::mutate(norm_OD = if ("norm_OD" %in% colnames(.)) norm_OD else OD) %>%
+    return()
 }
 
 subset_data <- function(data, filter_col, filter_val) {
@@ -261,19 +268,19 @@ run_fit_exp <- function(data, exp_window_size) {
     all_pred_linear(time_elapsed_min = "time", norm_OD = "y") %>%
     dplyr::filter(norm_OD < max(data$norm_OD))
 
-  return(list(df_pred=df_pred, results=growthrates::results(fit_exp)))
+  return(list(df_pred = df_pred, results = growthrates::results(fit_exp)))
 }
 
-run_fit_logistic <- function(data, y0_range, mumax_range, K_range) {
+run_fit_logistic <- function(data, y0_range, mumax_range, k_range) {
   lower <- c(
     y0 = y0_range[1],
     mumax = mumax_range[1],
-    K = K_range[1]
+    K = k_range[1]
   )
   upper <- c(
     y0 = y0_range[2],
     mumax = mumax_range[2],
-    K = K_range[2]
+    K = k_range[2]
   )
   p <- 0.5 * (lower + upper)
 
@@ -288,11 +295,41 @@ run_fit_logistic <- function(data, y0_range, mumax_range, K_range) {
   df_pred <- fit_logit %>%
     all_pred_nonlinear(time_elapsed_min = "time", norm_OD = "y")
 
-  return(list(df_pred=df_pred, results=growthrates::results(fit_logit)))
+  return(list(df_pred = df_pred, results = growthrates::results(fit_logit)))
+}
+
+fitting_table <- function(fit_results, show_fitting_info, output) {
+  observeEvent(show_fitting_info, {
+    if (is.null(fit_results)) {
+      return()
+    }
+
+    showModal(modalDialog(
+      title = "Fitting info",
+      renderTable(fit_results, digits = 5),
+      size = "l",
+      easyClose = TRUE,
+      footer = modalButton("Close")
+    ))
+  })
+
+  output$download_fitting_info <- downloadHandler(
+    filename = function() {
+      "fitting_info.csv"
+    },
+    content = function(fname) {
+      write.csv(fit_results, fname)
+    }
+  )
 }
 
 server <- function(input, output, session) {
-  v <- reactiveValues(df_full = NULL, df_subset = NULL, df_pred = NULL, fit_results = NULL)
+  v <- reactiveValues(
+    df_full = NULL,
+    df_subset = NULL,
+    df_pred = NULL,
+    fit_results = NULL,
+  )
 
   observeEvent(input$file1, {
     req(input$file1)
@@ -303,8 +340,6 @@ server <- function(input, output, session) {
     # Check the input has been given
     req(input$file1)
     req(input$sheet_names)
-    req(input$blank_wells)
-    req(input$normalize_over)
 
     v$df_full <- read_data(
       input$file1,
@@ -330,7 +365,6 @@ server <- function(input, output, session) {
         "time_elapsed_min",
         "OD",
         "norm_OD",
-        "mean_OD_blank"
       )) %>%
       colnames()
 
@@ -354,7 +388,6 @@ server <- function(input, output, session) {
       dplyr::pull(input$filter_col) %>%
       unique()
 
-    # TODO: clearing this should reset the view to all
     updateSelectizeInput(
       session,
       "filter_val",
@@ -395,35 +428,21 @@ server <- function(input, output, session) {
           !is.null(input$logit_y0) &&
           !is.null(input$logit_mumax) &&
           !is.null(input$logit_K)
-        ) {
-        fit_res <- run_fit_logistic(v$df_subset, input$logit_y0, input$logit_mumax, input$logit_K) 
+      ) {
+        fit_res <- run_fit_logistic(
+          v$df_subset,
+          input$logit_y0,
+          input$logit_mumax,
+          input$logit_K
+        )
+
         v$df_pred <- fit_res$df_pred
         v$fit_results <- fit_res$results
       }
     })
-
   })
 
-  observeEvent(input$show_fitting_info, {
-    if (is.null(v$fit_results)) {
-      return()
-    }
-
-    showModal(modalDialog(
-      title="Fitting info",
-      renderTable(v$fit_results, digits=5),
-      size="l",
-      easyClose=TRUE,
-      footer=modalButton("Close")
-    ))
-  })
-  
-  output$download_fitting_info <- downloadHandler(
-    filename = function(){ "fitting_info.csv" },
-    content = function(fname) {
-      write.csv(v$fit_results, fname)
-    }
-  )
+  fitting_table(v$fit_results, input$show_fitting_info, output)
 
   output$plot <- renderPlotly({
     if (is.null(v$df_subset)) {
@@ -460,12 +479,15 @@ server <- function(input, output, session) {
         theme_bw()
 
       if (!is.null(v$df_pred) && nrow(v$df_pred) > 0) {
-        fit_data <- v$df_pred %>% 
+        fit_data <- v$df_pred %>%
           dplyr::left_join(
-            v$fit_results %>% 
-            dplyr::mutate(plate = as.character(plate), col = as.character(col))
+            v$fit_results %>%
+              dplyr::mutate(
+                plate = as.character(plate),
+                col = as.character(col)
+              )
           ) %>%
-          dplyr::rename(tidyr::any_of(c(growth_rate="mumax")))
+          dplyr::rename(tidyr::any_of(c(growth_rate = "mumax")))
 
         g <- g + geom_line(
           aes(group = plate),
@@ -473,8 +495,12 @@ server <- function(input, output, session) {
           color = "black",
           linewidth = 1.6
         ) +
-          geom_line(aes(growth_rate=growth_rate), data = fit_data, linetype = "dashed", linewidth = 1.0)
-        # TODO: download button for df_pred
+          geom_line(
+            aes(growth_rate = growth_rate),
+            data = fit_data,
+            linetype = "dashed",
+            linewidth = 1.0
+          )
       }
 
       incProgress(3 / 4, detail = "Finishing figure")
