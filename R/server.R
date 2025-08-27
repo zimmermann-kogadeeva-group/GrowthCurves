@@ -2,6 +2,7 @@ library(shiny)
 library(bslib)
 library(magrittr)
 library(plotly)
+library(rlang)
 library(ggplot2)
 
 source("shiny_funcs.R")
@@ -129,7 +130,6 @@ server <- function(input, output, session) {
     }
 
     df <- v$df_subset
-    y_var <- ifelse("norm_OD" %in% colnames(df), "norm_OD", "OD")
 
     withProgress(message = "Making plot", {
       incProgress(1 / 4, detail = "Setting up base plot")
@@ -137,12 +137,12 @@ server <- function(input, output, session) {
       # Whether to plot replicates separetly or not
       if (input$lines) {
         g <- df %>%
-          ggplot(aes(x = time_elapsed_min, y = !!sym(y_var), color = plate)) +
+          ggplot(aes(x = time_elapsed_min, y = norm_OD, color = plate)) +
           geom_point(size = 0.5) +
           geom_line(aes(color = plate))
       } else {
         g <- df %>%
-          add_mean_and_sd(col = y_var) %>%
+          add_mean_and_sd() %>%
           ggplot(aes(x = time_elapsed_min)) +
           geom_ribbon(aes(ymin = lb, ymax = ub), fill = "grey", alpha = 0.7) +
           geom_line(aes(y = mean_norm_OD))
@@ -150,13 +150,17 @@ server <- function(input, output, session) {
 
       incProgress(2 / 4, detail = "Setting up facets")
 
+      # Check whether normalisation was done and change y-label correspondingly
+      y_var <- ifelse(is.null(input$blank_wells), "OD", "norm_OD")
+
       g <- g +
         ggh4x::facet_grid2(
           row ~ col,
           scales = ifelse(input$shared_axes, "fixed", "free"),
           independent = ifelse(input$shared_axes, "none", "y")
         ) +
-        theme_bw()
+        theme_bw() +
+        labs(y = y_var)
 
       if (!is.null(v$df_pred) && nrow(v$df_pred) > 0) {
         fit_data <- v$df_pred %>%
@@ -167,7 +171,9 @@ server <- function(input, output, session) {
                 col = as.character(col)
               )
           ) %>%
-          dplyr::rename(tidyr::any_of(c(growth_rate = "mumax")))
+          dplyr::rename(
+            tidyr::any_of(c(growth_rate = "mumax"))
+          )
 
         g <- g + geom_line(
           aes(group = plate),

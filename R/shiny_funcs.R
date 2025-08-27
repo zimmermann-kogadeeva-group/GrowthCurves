@@ -76,6 +76,11 @@ read_data <- function(in_file, sheet_names, blank_wells, norm_over, session) {
     )
   }
 
+  # Make sure that `norm_OD` column is in dataframe
+  if (!("norm_OD" %in% colnames(df_full))) {
+    df_full <- df_full %>% dplyr::mutate(norm_OD = OD)
+  }
+
   return(df_full)
 }
 
@@ -170,7 +175,7 @@ run_fit_exp <- function(data, exp_window_size) {
   )
 
   df_pred <- fit_exp %>%
-    all_pred_exp(time_elapsed_min = "time", norm_OD = "y") %>%
+    all_pred_exp(x = "time_elapsed_min", y = "norm_OD") %>%
     dplyr::filter(norm_OD < max(data$norm_OD))
 
   return(list(df_pred = df_pred, fit_results = growthrates::results(fit_exp)))
@@ -198,7 +203,7 @@ run_fit_logistic <- function(data, y0_range, mumax_range, k_range) {
   )
 
   df_pred <- fit_logit %>%
-    all_pred_logistic(time_elapsed_min = "time", norm_OD = "y")
+    all_pred_logistic(x = "time_elapsed_min", y = "norm_OD")
 
   return(list(df_pred = df_pred, fit_results = growthrates::results(fit_logit)))
 }

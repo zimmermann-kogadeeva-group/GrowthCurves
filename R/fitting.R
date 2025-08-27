@@ -1,4 +1,6 @@
 library(magrittr)
+library(rlang)
+
 
 normalize <- function(data, value = 0.01) {
   data %>%
@@ -25,7 +27,7 @@ get_pred_logistic <- function(fit) {
   fit@FUN(fit_obs$time, coeffs) %>% as.data.frame()
 }
 
-all_pred_exp <- function(fits, ...) {
+all_pred_exp <- function(fits, x = "time", y = "y") {
   fits@fits %>%
     purrr::imap(~ {
       get_pred_exp(.x) %>% dplyr::mutate(grouping = .y)
@@ -35,10 +37,10 @@ all_pred_exp <- function(fits, ...) {
       grouping,
       delim = ":", names = fits@grouping
     ) %>%
-    dplyr::rename(...)
+    dplyr::rename({{ x }} := "time", {{ y }} := "y")
 }
 
-all_pred_logistic <- function(fits, ...) {
+all_pred_logistic <- function(fits, x = "time", y = "y") {
   fits@fits %>%
     purrr::imap(~ {
       get_pred_logistic(.x) %>% dplyr::mutate(grouping = .y)
@@ -48,5 +50,5 @@ all_pred_logistic <- function(fits, ...) {
       grouping,
       delim = ":", names = fits@grouping
     ) %>%
-    dplyr::rename(...)
+    dplyr::rename({{ x }} := "time", {{ y }} := "y")
 }

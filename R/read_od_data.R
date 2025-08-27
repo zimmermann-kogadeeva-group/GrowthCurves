@@ -253,7 +253,8 @@ add_metadata <- function(data, metadata_path, sheets = NULL) {
 }
 
 add_mean_and_sd <- function(
-    data, col = "norm_OD",
+    data,
+    col = "norm_OD",
     mean_over = c("time_elapsed_min", "well")) {
   data %>%
     dplyr::group_by(across(all_of(mean_over))) %>%

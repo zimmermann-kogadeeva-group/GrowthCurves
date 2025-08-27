@@ -72,7 +72,7 @@ fit_comm21_exp <- growthrates::all_easylinear(
 The following code gives a table of predictions:
 ```{r}
 df_comm21_exp_pred <- fit_comm21_exp %>% 
-  all_pred_exp(norm_OD="y", time_elapsed_min="time") %>%
+  all_pred_exp(time_elapsed_min, norm_OD) %>%
   filter(norm_OD < max(df_comm21$norm_OD))
 ```
 
@@ -111,7 +111,7 @@ Again, as in the exponential example, we get a dataframe with predicitions given
 the logistic growth model:
 ```{r}
 df_comm21_logit_pred <- fit_comm21_logit %>% 
-  all_pred_logistic(time_elapsed_min="time", norm_OD="y")
+  all_pred_logistic(time_elapsed_min, norm_OD)
 ```
 
 which we can plot as follows:
@@ -122,18 +122,6 @@ df_comm21 %>%
   geom_line() +
   geom_line(aes(group=plate), data=df_comm21_logit_pred, color="black", linewidth=1.6) +
   geom_line(data=df_comm21_logit_pred, linetype="dashed", linewidth=1.0) +
-  facet_grid(rows=vars(row), cols=vars(col))
-```
-
-
-which we can plot as follows:
-```{r}
-df_comm21 %>%
-  ggplot(aes(x=time_elapsed_min, y=norm_OD, color=plate)) +
-  geom_point() + 
-  geom_line() +
-  geom_line(aes(group=plate), data=df_comm21_exp_pred, color="black", linewidth=1.6) +
-  geom_line(data=df_comm21_exp_pred, linetype="dashed", linewidth=1.0) +
   facet_grid(rows=vars(row), cols=vars(col))
 ```
 
