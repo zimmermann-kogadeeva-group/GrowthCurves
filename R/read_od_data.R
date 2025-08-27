@@ -154,7 +154,7 @@ read_od_data <- function(
     path,
     sheets = NULL,
     blank_wells = NULL,
-    normalize_over = "time_elapsed_min",
+    normalize_over = NULL,
     time_digits = -1,
     ...) {
   # Make sure that ellipsis is converted properly
@@ -184,12 +184,22 @@ read_od_data <- function(
   blank_wells <- dplyr::enquo(blank_wells)
 
   if (!rlang::quo_is_null(blank_wells)) {
+    if (is.null(normalize_over)) {
+      blank_val <- data %>%
+        dplyr::filter(!!blank_wells) %>% # select the blank wells
+        dplyr::pull(OD) %>%
+        mean()
+
+      data <- data %>% dplyr::mutate(mean_OD_blank = blank_val)
+    } else {
+      data <- data %>%
+        dplyr::filter(!!blank_wells) %>% # select the blank wells
+        dplyr::group_by(dplyr::across(dplyr::all_of(normalize_over))) %>%
+        dplyr::summarize(mean_OD_blank = mean(OD)) %>%
+        dplyr::ungroup() %>%
+        dplyr::full_join(data, by = normalize_over)
+    }
     data <- data %>%
-      dplyr::filter(!!blank_wells) %>% # select the blank wells
-      dplyr::group_by(dplyr::across(dplyr::all_of(normalize_over))) %>%
-      dplyr::summarize(mean_OD_blank = mean(OD)) %>%
-      dplyr::ungroup() %>%
-      dplyr::full_join(data, by = normalize_over) %>%
       dplyr::mutate(norm_OD = OD - mean_OD_blank) %>%
       dplyr::select(-mean_OD_blank)
   }
@@ -230,10 +240,15 @@ add_metadata <- function(data, metadata_path, sheets = NULL) {
   return(data)
 }
 
-add_mean_and_sd <- function(data, mean_over = c("time_elapsed_min", "well")) {
+add_mean_and_sd <- function(
+    data, col = "norm_OD",
+    mean_over = c("time_elapsed_min", "well")) {
   data %>%
     dplyr::group_by(across(all_of(mean_over))) %>%
-    dplyr::summarize(mean_norm_OD = mean(norm_OD), sd_norm_OD = sd(norm_OD)) %>%
+    dplyr::summarize(
+      mean_norm_OD = mean(!!rlang::sym(col)),
+      sd_norm_OD = sd(!!rlang::sym(col))
+    ) %>%
     dplyr::ungroup() %>%
     dplyr::mutate(
       lb = mean_norm_OD - sd_norm_OD,

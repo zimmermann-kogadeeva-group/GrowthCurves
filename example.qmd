@@ -10,8 +10,8 @@ format:
 library(tidyverse)
 library(here)
 
-source(here("read_od_data.R"))
-source(here("fitting.R"))
+source(here("R/read_od_data.R"))
+source(here("R/fitting.R"))
 ```
 
 # Example 1

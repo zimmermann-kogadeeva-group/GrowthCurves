@@ -1,5 +1,5 @@
 
-FROM rocker/shiny:4.4.1
+FROM docker://rocker/shiny:4.4.1
 
 ENV DEBIAN_FRONTEND noninteractive
 ENV TZ Europe/Berlin
@@ -20,7 +20,8 @@ RUN install2.r --error --skipinstalled \
     growthrates \
     plotly
 
-COPY app.R fitting.R read_od_data.R /srv/shiny-server/
+
+COPY R/ /srv/shiny-server/
 
 USER shiny
 
