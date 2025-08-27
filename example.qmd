@@ -51,6 +51,92 @@ df_comm21 %>%
   theme_bw()
 ```
 
+## Fitting
+
+### Exponential
+
+This code fits exponential growth rates for microbial cultures by applying
+growthrates::all_easylinear to normalized optical density (norm_OD) measurements
+over time. The data is grouped by well and plate, with negative OD values
+filtered out. A sliding window (h=5) and smoothing parameter (spar=0.5) are used
+to estimate growth parameters for each culture replicate.
+```{r}
+fit_comm21_exp <- growthrates::all_easylinear(
+  norm_OD ~ time_elapsed_min | row + col + plate, 
+  data=df_comm21 %>% group_by(well, plate) %>% filter(!any(norm_OD < 0)) %>% ungroup(), 
+  h=5, 
+  spar=0.5
+)
+```
+
+The following code gives a table of predictions:
+```{r}
+df_comm21_exp_pred <- fit_comm21_exp %>% 
+  all_pred_exp(norm_OD="y", time_elapsed_min="time") %>%
+  filter(norm_OD < max(df_comm21$norm_OD))
+```
+
+which we can plot as follows:
+```{r}
+df_comm21 %>%
+  ggplot(aes(x=time_elapsed_min, y=norm_OD, color=plate)) +
+  geom_point() + 
+  geom_line() +
+  geom_line(aes(group=plate), data=df_comm21_exp_pred, color="black", linewidth=1.6) +
+  geom_line(data=df_comm21_exp_pred, linetype="dashed", linewidth=1.0) +
+  facet_grid(rows=vars(row), cols=vars(col))
+```
+
+### Logistic
+
+In a similar manner to fitting exponential, we can fit logistic growth function.
+Though, we have to define the upper and lower bounds and initial guesses for the
+three parameters in the model.
+```{r}
+p <- c(y0 = 0.01, mumax = 0.1, K = 1.0)
+
+lower   <- c(y0 = 0.001, mumax = 1e-3, K = 0.5)
+upper   <- c(y0 = 0.5,   mumax = 10,    K = 1.5)
+
+fit_comm21_logit <- growthrates::all_growthmodels(
+  norm_OD ~ growthrates::grow_logistic(time_elapsed_min, parms) | row + col + plate,
+  data=df_comm21,
+  p=p,
+  lower=lower,
+  upper=upper,
+)
+```
+
+Again, as in the exponential example, we get a dataframe with predicitions given
+the logistic growth model:
+```{r}
+df_comm21_logit_pred <- fit_comm21_logit %>% 
+  all_pred_logistic(time_elapsed_min="time", norm_OD="y")
+```
+
+which we can plot as follows:
+```{r}
+df_comm21 %>%
+  ggplot(aes(x=time_elapsed_min, y=norm_OD, color=plate)) +
+  geom_point() + 
+  geom_line() +
+  geom_line(aes(group=plate), data=df_comm21_logit_pred, color="black", linewidth=1.6) +
+  geom_line(data=df_comm21_logit_pred, linetype="dashed", linewidth=1.0) +
+  facet_grid(rows=vars(row), cols=vars(col))
+```
+
+
+which we can plot as follows:
+```{r}
+df_comm21 %>%
+  ggplot(aes(x=time_elapsed_min, y=norm_OD, color=plate)) +
+  geom_point() + 
+  geom_line() +
+  geom_line(aes(group=plate), data=df_comm21_exp_pred, color="black", linewidth=1.6) +
+  geom_line(data=df_comm21_exp_pred, linetype="dashed", linewidth=1.0) +
+  facet_grid(rows=vars(row), cols=vars(col))
+```
+
 # Example 2
 
 Read in P. vulgatus data and B. Uniformis data:

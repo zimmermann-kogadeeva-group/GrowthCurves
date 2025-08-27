@@ -25,7 +25,7 @@ get_pred_nonlinear <- function(fit) {
   fit@FUN(fit_obs$time, coeffs) %>% as.data.frame()
 }
 
-all_pred_linear <- function(fits, ...) {
+all_pred_exp <- function(fits, ...) {
   fits@fits %>%
     purrr::imap(~ {
       get_pred_linear(.x) %>% dplyr::mutate(grouping = .y)
@@ -38,7 +38,7 @@ all_pred_linear <- function(fits, ...) {
     dplyr::rename(...)
 }
 
-all_pred_nonlinear <- function(fits, ...) {
+all_pred_logistic <- function(fits, ...) {
   fits@fits %>%
     purrr::imap(~ {
       get_pred_nonlinear(.x) %>% dplyr::mutate(grouping = .y)

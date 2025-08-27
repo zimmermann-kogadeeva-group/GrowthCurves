@@ -170,7 +170,7 @@ run_fit_exp <- function(data, exp_window_size) {
   )
 
   df_pred <- fit_exp %>%
-    all_pred_linear(time_elapsed_min = "time", norm_OD = "y") %>%
+    all_pred_exp(time_elapsed_min = "time", norm_OD = "y") %>%
     dplyr::filter(norm_OD < max(data$norm_OD))
 
   return(list(df_pred = df_pred, fit_results = growthrates::results(fit_exp)))
@@ -198,7 +198,7 @@ run_fit_logistic <- function(data, y0_range, mumax_range, k_range) {
   )
 
   df_pred <- fit_logit %>%
-    all_pred_nonlinear(time_elapsed_min = "time", norm_OD = "y")
+    all_pred_logistic(time_elapsed_min = "time", norm_OD = "y")
 
   return(list(df_pred = df_pred, fit_results = growthrates::results(fit_logit)))
 }
