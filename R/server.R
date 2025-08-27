@@ -32,7 +32,7 @@ server <- function(input, output, session) {
       input$normalize_over,
       session
     )
-    v$df_subset <- v$df_full
+    v$df_subset <- subset_data(v$df_full, input$filter_col, input$filter_val)
   })
 
   observeEvent(input$file_metadata, {

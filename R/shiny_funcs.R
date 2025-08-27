@@ -80,6 +80,10 @@ read_data <- function(in_file, sheet_names, blank_wells, norm_over, session) {
 }
 
 subset_data <- function(data, filter_col, filter_val) {
+  if (is.null(filter_col) || filter_col == "") {
+    return(data)
+  }
+
   filter_col <- rlang::sym(filter_col)
 
   if (length(filter_val) == 1) {
