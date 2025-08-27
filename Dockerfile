@@ -1,5 +1,5 @@
 
-FROM docker://rocker/shiny:4.4.1
+FROM rocker/shiny:4.4.1
 
 ENV DEBIAN_FRONTEND noninteractive
 ENV TZ Europe/Berlin
