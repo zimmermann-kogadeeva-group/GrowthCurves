@@ -150,6 +150,39 @@ process_data <- function(data, time_digits = -1, ...) {
     return()
 }
 
+normalize_od_data <- function(
+    data,
+    blank_wells = NULL,
+    normalize_over = NULL) {
+  # Normalize based on user specified columns
+  blank_wells <- dplyr::enquo(blank_wells)
+
+  if (!rlang::quo_is_null(blank_wells)) {
+    if (is.null(normalize_over)) {
+      # If normalize_over arg is NULL, then take a mean over
+      # all the blank wells over all time points
+      blank_val <- data %>%
+        dplyr::filter(!!blank_wells) %>% # select the blank wells
+        dplyr::pull(OD) %>%
+        mean()
+
+      data <- data %>% dplyr::mutate(mean_OD_blank = blank_val)
+    } else {
+      # Otherwise take a mean over blank wells per user defined col(s)
+      data <- data %>%
+        dplyr::filter(!!blank_wells) %>% # select the blank wells
+        dplyr::group_by(dplyr::across(dplyr::all_of(normalize_over))) %>%
+        dplyr::summarize(mean_OD_blank = mean(OD)) %>%
+        dplyr::ungroup() %>%
+        dplyr::full_join(data, by = normalize_over)
+    }
+    data <- data %>%
+      dplyr::mutate(norm_OD = OD - mean_OD_blank) %>%
+      dplyr::select(-mean_OD_blank)
+  }
+  return(data)
+}
+
 read_od_data <- function(
     path,
     sheets = NULL,
@@ -169,6 +202,8 @@ read_od_data <- function(
     stop(paste("Unknown format:", file_ext))
   }
 
+  blank_wells <- dplyr::enquo(blank_wells)
+
   # Loop over all the specified sheets
   data <- list_sheets %>%
     purrr::imap(~ process_data(
@@ -178,31 +213,8 @@ read_od_data <- function(
       !!!dots
     )) %>%
     dplyr::bind_rows() %>%
-    dplyr::mutate(plate = as.factor(plate))
-
-  # Normalize based on user specified columns
-  blank_wells <- dplyr::enquo(blank_wells)
-
-  if (!rlang::quo_is_null(blank_wells)) {
-    if (is.null(normalize_over)) {
-      blank_val <- data %>%
-        dplyr::filter(!!blank_wells) %>% # select the blank wells
-        dplyr::pull(OD) %>%
-        mean()
-
-      data <- data %>% dplyr::mutate(mean_OD_blank = blank_val)
-    } else {
-      data <- data %>%
-        dplyr::filter(!!blank_wells) %>% # select the blank wells
-        dplyr::group_by(dplyr::across(dplyr::all_of(normalize_over))) %>%
-        dplyr::summarize(mean_OD_blank = mean(OD)) %>%
-        dplyr::ungroup() %>%
-        dplyr::full_join(data, by = normalize_over)
-    }
-    data <- data %>%
-      dplyr::mutate(norm_OD = OD - mean_OD_blank) %>%
-      dplyr::select(-mean_OD_blank)
-  }
+    dplyr::mutate(plate = as.factor(plate)) %>%
+    normalize_od_data(!!blank_wells, normalize_over)
 
   return(data)
 }
