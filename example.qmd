@@ -111,7 +111,7 @@ Again, as in the exponential example, we get a dataframe with predicitions given
 the logistic growth model:
 ```{r}
 df_comm21_logit_pred <- fit_comm21_logit %>% 
-  all_pred_logistic(time_elapsed_min, norm_OD)
+  all_pred_nonlinear(time_elapsed_min, norm_OD)
 ```
 
 which we can plot as follows:

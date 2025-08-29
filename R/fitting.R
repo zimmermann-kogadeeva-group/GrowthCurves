@@ -20,7 +20,7 @@ get_pred_exp <- function(fit) {
     as.data.frame()
 }
 
-get_pred_logistic <- function(fit) {
+get_pred_nonlinear <- function(fit) {
   fit_obs <- growthrates::obs(fit)
   coeffs <- growthrates::coef(fit)
 
@@ -40,10 +40,10 @@ all_pred_exp <- function(fits, x = "time", y = "y") {
     dplyr::rename({{ x }} := "time", {{ y }} := "y")
 }
 
-all_pred_logistic <- function(fits, x = "time", y = "y") {
+all_pred_nonlinear <- function(fits, x = "time", y = "y") {
   fits@fits %>%
     purrr::imap(~ {
-      get_pred_logistic(.x) %>% dplyr::mutate(grouping = .y)
+      get_pred_nonlinear(.x) %>% dplyr::mutate(grouping = .y)
     }) %>%
     dplyr::bind_rows() %>%
     tidyr::separate_wider_delim(

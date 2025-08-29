@@ -103,9 +103,9 @@ server <- function(input, output, session) {
       v$df_subset,
       input$fitting_opt,
       input$exp_window_size,
-      input$logit_y0,
-      input$logit_mumax,
-      input$logit_K
+      input$fit_y0,
+      input$fit_mumax,
+      input$fit_K
     )
     v$df_pred <- pred_res$df_pred
     v$fit_results <- pred_res$fit_results

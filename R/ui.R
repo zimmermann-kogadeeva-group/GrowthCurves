@@ -81,7 +81,8 @@ ui <- page_sidebar(
           label = "Model type:",
           choices = list(
             "Exponential" = "exp",
-            "Logistic" = "logistic"
+            "Logistic" = "logistic",
+            "Gompertz" = "gompertz"
           ),
           selected = character(0)
         ),

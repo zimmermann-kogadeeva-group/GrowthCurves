@@ -118,10 +118,10 @@ fitting_params <- function(fitting_opt) {
         max = 50,
         value = 5
       )
-    } else if (fitting_opt == "logistic") {
+    } else if (fitting_opt == "logistic" || fitting_opt == "gompertz") {
       tagList(
         sliderInput(
-          "logit_y0",
+          "fit_y0",
           "y-intercept",
           min = 0.0,
           max = 1.0,
@@ -129,7 +129,7 @@ fitting_params <- function(fitting_opt) {
           step = 0.01
         ),
         sliderInput(
-          "logit_mumax",
+          "fit_mumax",
           "growth rate",
           min = 0.0,
           max = 2.0,
@@ -137,7 +137,7 @@ fitting_params <- function(fitting_opt) {
           step = 0.001
         ),
         sliderInput(
-          "logit_K",
+          "fit_K",
           "carrying capacity",
           min = 0.0,
           max = 2.0,
@@ -203,33 +203,62 @@ run_fit_logistic <- function(data, y0_range, mumax_range, k_range) {
   )
 
   df_pred <- fit_logit %>%
-    all_pred_logistic(x = "time_elapsed_min", y = "norm_OD")
+    all_pred_nonlinear(x = "time_elapsed_min", y = "norm_OD")
 
   return(list(df_pred = df_pred, fit_results = growthrates::results(fit_logit)))
+}
+
+run_fit_gompertz <- function(data, y0_range, mumax_range, k_range) {
+  lower <- c(
+    y0 = y0_range[1],
+    mumax = mumax_range[1],
+    K = k_range[1]
+  )
+  upper <- c(
+    y0 = y0_range[2],
+    mumax = mumax_range[2],
+    K = k_range[2]
+  )
+  p <- 0.5 * (lower + upper)
+
+  fit_gomp <- growthrates::all_growthmodels(
+    norm_OD ~ growthrates::grow_gompertz(time_elapsed_min, parms) | row + col + plate,
+    data = data,
+    p = p,
+    lower = lower,
+    upper = upper,
+  )
+
+  df_pred <- fit_gomp %>%
+    all_pred_nonlinear(x = "time_elapsed_min", y = "norm_OD")
+
+  return(list(df_pred = df_pred, fit_results = growthrates::results(fit_gomp)))
 }
 
 run_fit <- function(
     data,
     fitting_opt,
     exp_window_size,
-    logit_y0,
-    logit_mumax,
-    logit_k) {
+    fit_y0,
+    fit_mumax,
+    fit_k) {
   if (is.null(data) || is.null(fitting_opt)) {
     return()
   }
-  logit_params_cond <- (
-    is.null(logit_y0) ||
-      is.null(logit_mumax) ||
-      is.null(logit_k)
+  fit_params_cond <- (
+    is.null(fit_y0) ||
+      is.null(fit_mumax) ||
+      is.null(fit_k)
   )
 
   withProgress(message = "Fitting to data...", {
     # fit either exp or logistic growth
     if (fitting_opt == "exp" && !is.null(exp_window_size)) {
       return(run_fit_exp(data, exp_window_size))
-    } else if (fitting_opt == "logistic" && !logit_params_cond) {
-      return(run_fit_logistic(data, logit_y0, logit_mumax, logit_k))
+    } else if (fitting_opt == "logistic" && !fit_params_cond) {
+      return(run_fit_logistic(data, fit_y0, fit_mumax, fit_k))
+    } else if (fitting_opt == "gompertz" && !fit_params_cond) {
+      return(run_fit_gompertz(data, fit_y0, fit_mumax, fit_k))
     }
   })
 }
